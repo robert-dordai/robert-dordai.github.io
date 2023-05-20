@@ -2,4 +2,4 @@
 title: "Home"
 ---
 
-Moving data around.
+Backend software engineer sharing stuff. [LinkedIn](https://www.linkedin.com/in/robertdordai/)
