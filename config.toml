@@ -1,6 +1,6 @@
 baseURL = "https://robert-dordai.github.io/"
 title = "Home"
-theme = "etch"
+theme = "holy"
 languageCode = "en-US"
 enableInlineShortcodes = true
 pygmentsCodeFences = true
@@ -10,7 +10,7 @@ publishDir = "docs"
 [params]
   description = "Your site description"
   copyright = "© 2023 Robert Dordai"
-  dark = "auto"
+  dark = "true"
   highlight = true
 
 [menu]
