@@ -1,73 +1,56 @@
 ---
-title: "concurrency & garbage w/ node"
+title: "concurrency, garbage & performance w/ node"
 date: 2023-05-21T01:00:37+03:00
 draft: false
 ---
 
+In this article I'll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
 
-![alt text](/k8s-meme.png)
-
-This meme reminds me a lot of Node as well. In this article, I'll attempt to bring more clarity about how Node works under the hood from a concurrency and memory management point of view. After that, approach the performance topic of Node servers, and how its internals can affect it.
-
-[Node under the hood](#node-under-the-hood)
+[Concurrency and garbage](#concurrency-and-garbage)
   - [Terminology](#terminology)
-  - [Overview of Node's concurrency model](#overview-of-nodes-concurrency-model)
-  - [Overview of Node's memory model](#overview-of-nodes-memory-model)
+  - [Concurrency model](#concurrency-model)
+  - [Memory model](#memory-model)
   - [Diagram and clarifications](#diagram-and-clarifications)
     - [The callback queues](#the-callback-queues)
     - [The heap](#the-heap)
     - [Bindings and threads](#bindings-and-threads)
 
-[Notes on performance](#notes-on-performance)
+[Performance](#performance)
   - [Cost and cascading effects](#cost-and-cascading-effects)
   - [API and workers](#api-and-workers)
+  - [Caching](#caching)
 
 [Conclusion](#conclusion)
 
 ---
 
-## `Node under the hood`
+## `Concurrency and garbage`
 
 ## Terminology
 
 Many words and concepts are thrown around when dealing with Node. Let's define some of them:
 
-**Blocking operations**
+**Blocking operations** execute **synchronously**, i.e., the thread cannot execute other instructions until the operation is done.
 
-- Execute **synchronously**
-- Meaning, until that operation is done, the thread’s call stack can pick up no other instructions
+**Non-blocking operations** execute **asynchronously**, i.e., the thread can execute other instructions while the operation is in progress.
 
-**Non-blocking operations**
+> Generally, when dealing with Node we consider operations blocking/non-blocking only related to the main thread where the event loop runs. Meaning, we can consider an operation non-blocking in the Node world while that operation is simply offloaded to a worker thread and blocking that thread.
 
-- Execute **asynchronously**
-- Meaning, while the operation is happening, other instructions can be picked up by the thread's call stack
+A **process** groups together the required resources (e.g. memory space) to execute a program.
 
-So, blocking/non-blocking operations are always strictly related to one specific thread.
-
-**Process**: groups together the required resources (e.g. memory space) to execute a program
-
-**Thread**:
+**Threads**:
 
 - Parented by a process
-- Handles the execution of instructions with the help of a program counter, registers, and a stack (aka **call stack**, thread stack)
-- All threads of a process
-  - have their own program counter, registers, and stack
-  - share the memory space of the process i.e., faster interthread communication than interprocess
+- Handle the execution of instructions with the help of a program counter, registers, and a **call stack** (all three independent for all threads) 
+- Share the memory space of the process, i.e., faster interthread communication than interprocess
 
 **Memory heap**: portion of memory with dynamically allocated data
 
-**I/O**: refers to disk and network operations
-
-**Some disk operations**: reading/writing a file
-
-**Some network operations**:
-
-- Doing HTTP requests
-- Interacting with a database via a driver that acts as an API
+**I/O**: disk (e.g. reading/writing a file) and network (e.g. doing HTTP requests) operations
 
 **Callback**:
 
-- A callback is a function passed to another function as an argument, to be called inside that function once some action is over
+- A callback is a function passed to another function as an argument, to be called inside that function once some action is finalised
 - More specifically to Node, callbacks enable asynchronous behavior, by defining the action that should be performed once the asynchronous operation is done
 
 **Thread-based servers**:
@@ -79,15 +62,15 @@ So, blocking/non-blocking operations are always strictly related to one specific
 **Event-based servers**:
 
 - Handle every incoming request in one main thread
-- I/O is non-blocking/asynchronous on the main thread and managed by an event (i/o) loop
+- I/O is non-blocking/asynchronous on the main thread and managed by an event (I/O) loop
 - This approach makes the assumption our server is I/O intensive instead of CPU intensive
 - If we manage to avoid intensive computing, this approach gains an advantage over the thread-based servers, because it manages to avoid the thread overhead, by processing all requests in the same thread
 
-## Overview of Node's concurrency model
+## Concurrency model
 
-At the core of Node's concurrency is its event-based architecture with the event loop in the center. The event loop is either pooling for I/O events or looping through callback queues and emptying them.
+At the core of Node's concurrency is its event-based architecture with the event loop in the center. The event loop is either pooling for I/O events or looping through callback queues and executing them (i.e. sending them to the call stack).
 
-By using one thread for incoming requests, we make use of events that signal incoming requests or the completion of asynchronous operations and are picked up by the event loop and executed one by one. The whole system hangs on the idea of fast-executing callbacks and not starving the event loop. Any time the event loop can't empty its callback queues, client requests are blocked.
+By using one thread for incoming requests, we make use of events that signal incoming requests or the completion of asynchronous operations and are picked up by the event loop and executed one by one. The whole system hangs on the idea of fast-executing callbacks and not starving the event loop. If at any time a callback takes too long to finish that means no other client requests are being processed.
 
 *Event handlers are a type of callback, that is meant to be executed once an event is emitted.*
 
@@ -116,7 +99,7 @@ app.listen(3000);
 
 Now, we can look at lines like this `const users = await db.get('users')` in a different light. This `await` syntax is there only to help us give our endpoint handler a synchronous structure. The DB operation happens on the main thread and is non-blocking. In order for that `await` to return a value, the event loop has to actually execute the callback from the emitted event that signaled the finality of the request.
 
-## Overview of Node's memory model
+## Memory model
 
 Node uses JavaScript which is a garbage-collected language, meaning, we don't have to deal with memory deallocations. The job of the garbage collector is straightforward: identify unused memory allocations then release that memory so it could be further used.
 
@@ -240,13 +223,19 @@ Even if `nextTick` has the highest priority, if we started to execute the `promi
 Which thread handles which operation can be pretty confusing with Node.
 
 - Network and timer operations run on the main thread and are non-blocking
-- Synchronous APIs for compute or disk run on the main thread and are blocking the thread
+- Synchronous APIs for compute or disk run on the main thread blocking it
 - Asynchronous APIs for compute or disk run on threads from `libuv` thread pool and are blocking the thread they're running on
 - DNS operations run on threads from `c-ares` thread pool and are blocking the thread they're running on
 
 ---
 
-## `Notes on performance`
+## `Performance`
+
+Even though this topic is hugely vast, there are some basic points that we can follow and get good performance out of most APIs:
+
+- Write optimal code (algorithmic complexity, network trips, memory footprint)
+- Offload appropriate operations to workers
+- Cache as much as possible
 
 ### Cost and cascading effects
 
@@ -388,42 +377,39 @@ In a way, it's kinda known that doing O(N^2) operations is not ideal performance
 
 Also, that huge initial hit of performance from that O(N) operation is meant to signal the fragility of this event-based system. Its whole throughput depends on us executing callbacks quickly by avoiding intensive CPU operation or expensive synchronous APIs that block the thread.
 
-As a final note for this section, the purpose of these benchmarks is in no way meant to say that you suddenly shouldn't do network calls anymore or for loops, but, always be aware of their cost, and if possible minimize it:
-
-- fewer or parallel network calls
-- better complexity for our algorithms
-- smaller memory footprint/request
-
 ### API and workers
 
-Not every decision that impacts performance is related to improving algorithms complexity or minimizing network calls. Sometimes we have to make delimitations between what operations must happen in the server before giving the client a response, and what operations can be outsourced to a worker.
+Not every optimization problem can be solved by just optimizing algorithms, network trips or the memory footprint of an endpoint. This is where workers come into play.
 
-**Sign-up example**
+Let's say we have a sign-up endpoint, where we add a user in the database and send a welcome to our app email. In order to send that email we use a third-party API. Some notes:
 
-Let's say we launch a new app that already has a lot of hype and we expect lots of people to sign-up at the same time when we tweet that the app is live. Every time a client would hit the sign-up endpoint we would create a user in the database and send an confirmation email to the user. The email sending operation we outsource to a third-party API.
+- The welcome to our app email is not critical to the business logic, whats imperative is the user to be added in the database and to be able to log in
+- We have no control over the latency of third-party APIs, we can find ourselves having 100ms+ response times for them without being able to do anything
 
-Related to third-party APIs:
+With these two notes in mind, it kinda comes naturally that if we find ourselves with thousands or tens of thousands of users registering every second, we should outsource that email operation to a worker, thus making a pretty substantial improvement to our sign-up endpoint throughput. Instead of making the call to the third-party API, our endpoint will just publish a message via some broker (e.g. RabbitMQ, Kafka) signifing that user X should get an email, and the worker will just listen to messages and attempting to send the emails.
 
-- we have no idea of the locality of the server we're hitting when calling those APIs (like we know for our database that we can keep in the same zone)
-- that API also has certain rate limits
+Situations to consider offloading operations to workers:
 
-So we can find ourselves where we have a 100ms call to a third-party API (or get `429` errors), for a call that is not critical to happen exactly in that moment. We can easily just create a user in the database, with a field `verified: false`, use a message queue, and have a worker pick up the message and call the API (and also implement some retry mechanism in case of `429` errors).
+- Non-critical operations with variable latencies
+- CPU intensive operations when using event-based servers
 
-The frontend can confirm to the user that it was created and that an email confirmation is coming. Even if our system somehow fails and we lose that message and the user doesn't get the email, he can still just press a button ("send email again) that initiates another email-sending operation.
+### Caching
 
-This example illustrates how a simple tweak in the logic of the endpoint can have drastic improvements for our throughput. Inevitably there will be endpoints with lots of operations and lots of traffic and at some point, we will run out of optimizations. Then all we're left to do is try and outsource some of the operations to a worker.
+As a generally rule of thumb requests should get to certain machines or operations only if it's necessary. Meaning:
+
+- If the client (web/mobile app) needs a new API response only every 10 minutes, it should cache the response and call the API only when it's necessary
+- If a database query rarely changes it's response, we should cache the response in memory (e.g. via Redis), and serve the data from there
+- If we query by a certain field, that query should be indexed (saved in memory and point to the record on disk)
+
+The best optimization we can do to our API is not call it, same for the database or any other machine that spends resources to serve us something.
 
 ---
 
 ## `Conclusion`
 
-Node in a way reminds me of NoSQL databases. As long as you follow the precise way they're meant to be used, you can get better performance than traditional relational databases.
+Because of the event-based approach, Node is similar with NoSQL databases, in the sense that, in certain use cases it will outperform the classic RDBMS (in our case thread-based servers), but the cost of that performance improvement is we're limited in what operations we can freely do.
 
-Understanding the concurrency and memory model of Node is absolutely critical, especially because it uses an event-based architecture and one CPU-intensive operation can absolutely wreck our throughput by impacting all incoming requests.
-
-Thinking about cost in a cascading way can also help a lot because it makes us more aware of operations that would normally fly under the radar (like memory allocations).
-
-This article just scratched the surface, check references to go more in-depth.
+This makes it extra important to understand how Node works from a concurrency and memory point of view, because one mistake can absolutely wreck our throughput.
 
 ---
 
