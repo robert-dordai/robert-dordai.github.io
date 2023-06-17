@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html><head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <title>concurrency, garbage &amp; performance w/ node - Home</title>
+
+    
+    
+    <meta name="description" content="In this article I&rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
+Concurrency and garbage
+Terminology Concurrency model Memory model Diagram and clarifications The callback queues The heap Bindings and threads Performance
+Cost and cascading effects API and workers Caching Conclusion
+Concurrency and garbage Terminology Many words and concepts are thrown around when dealing with Node." />
+    <meta name="author" content="" />
+    
+
+    <link href="https://unpkg.com/@master/normal.css" rel="stylesheet">
+    <script src="https://unpkg.com/@master/style@1.5.0"></script>
+    <script src="https://unpkg.com/@master/styles@1.13.0"></script>
+    <script src="https://unpkg.com/master-styles-group"></script>
+    <script src="https://unpkg.com/themes.js"></script>
+    <script>window.themes = window.themes || new window.Themes()</script>
+
+    <style>
+        :root {
+            --font-sans: "Inter var", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+        }
+    </style></head>
+<body class="bg:fade-84@dark font:fade-16@dark font:sans">
+    <nav class="w:full h:90 fixed bg:fade-84/.95@dark bg:white z:1000">
+    <div class="
+        h:full
+        w:full
+        max-w:1200
+        mx:auto
+        px:32
+        d:flex
+        align-items:center
+    ">
+        <div>
+            <a href="/" class="mr-3 font:extralight">
+              
+              Home
+              
+            </a>
+        </div>
+
+        <div class="ml:auto">
+            
+            
+            
+        </div>
+    </div>
+</nav>
+<div class="d:flex flex:column@<=sm pt:90 px:24 jc:center gap:44 word-break:break-word">
+        <div class="max-w:700 w:full box:content-box">
+<article class="box:border-box pt:32">
+    <header class="mb:32">
+        <div class="font:40 font:extrabold">concurrency, garbage &amp; performance w/ node</div>
+        <div class="mt:16 f:fade-60">
+            <time>May 21, 2023</time>
+            </div>
+    </header><div class="
+    _:where(a):hover{text-decoration-color:fade}
+    _:where(a){text-decoration:2;underline;fade-10;_text-decoration-color:fade-70@dark}
+    _:where(blockquote){bl:5;solid;fade-76/.1;_bl:5;solid;fade-34/.1@dark}
+    _:where(code){font:90%;_v:middle}
+    _:where(code:not(.highlight_*,pre_*)){p:2;6;_r:4}
+    _:where(del){text-decoration:1;line-through;fade-68;_text-decoration-color:red-64@dark}
+    _:where(figcaption){text:14;_p:10;20;0;_width:fit;_mx:auto;_font:fade-56;_font:fade-57@dark}
+    _:where(h1){font:40;_font:extrabold}
+    _:where(h1,h2,h3)+:where(h1,h2,h3){mt:.5em}
+    _:where(h1,h2,h3,h4,h5,h6){mt:2em}
+    _:where(h2){mb:1em;_font:32}
+    _:where(h3){font:24}
+    _:where(h4){font:20}
+    _:where(h5){font:16}
+    _:where(h6){font:14}
+    _:where(li)::marker{font:fade-44;_font:fade-68@dark}
+    _:where(li){pl:.375em}
+    _:where(mark){text-decoration:1;underline;#fce016;_bg:transparent;_text-decoration-color:rgb(252;224;22/.5)@dark}
+    _:where(p,li){font:fade-76;_font:16;_line-height:1.65;_font:fade-34@dark}
+    _:where(p,pre,blockquote,figure,ul,ol,table){my:1.125em}
+    >:first-child{mt:0!}
+    _:where(pre){p:20;_r:8;_overflow:auto}
+    _:where(pre,code:not(.highlight_*)){bg:fade-2;_bg:fade-92!@dark}
+    _:where(strong,b,a,code:not(.highlight_*),mark,del){font:fade-92;_font:fade-12@dark}
+    _:where(table){width:full;_border-spacing:0}
+    _:where(td){v:baseline}
+    _:where(td,th):first-child{pl:0}
+    _:where(td,th):last-child{pr:0}
+    _:where(td,th){bb:1;solid;fade-92/.06;_p:6;_b:fade-4/.04@dark}
+    _:where(th){font:fade-78;_font:14;_text:left;_font:fade-12@dark}
+    _:where(th,p_code,li_code,a,mark){font:semibold;_font:medium@dark}
+    _:where(ul){list-style-type:disc}
+    _:where(ul,ol,blockquote){pl:1.5em}
+    _:where(video,img){max-width:full}
+    _:where(a,mark){text-underline-offset:3}
+    _:where(hr){h:2;_bg:fade-10;_bg:fade-70@dark;_my:3em}
+"><p>In this article I&rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.</p>
+<p><a href="#concurrency-and-garbage">Concurrency and garbage</a></p>
+<ul>
+<li><a href="#terminology">Terminology</a></li>
+<li><a href="#concurrency-model">Concurrency model</a></li>
+<li><a href="#memory-model">Memory model</a></li>
+<li><a href="#diagram-and-clarifications">Diagram and clarifications</a>
+<ul>
+<li><a href="#the-callback-queues">The callback queues</a></li>
+<li><a href="#the-heap">The heap</a></li>
+<li><a href="#bindings-and-threads">Bindings and threads</a></li>
+</ul>
+</li>
+</ul>
+<p><a href="#performance">Performance</a></p>
+<ul>
+<li><a href="#cost-and-cascading-effects">Cost and cascading effects</a></li>
+<li><a href="#api-and-workers">API and workers</a></li>
+<li><a href="#caching">Caching</a></li>
+</ul>
+<p><a href="#conclusion">Conclusion</a></p>
+<hr>
+<h2 id="concurrency-and-garbage"><code>Concurrency and garbage</code></h2>
+<h2 id="terminology">Terminology</h2>
+<p>Many words and concepts are thrown around when dealing with Node. Let&rsquo;s define some of them:</p>
+<p><strong>Blocking operations</strong> execute <strong>synchronously</strong>, i.e., the thread cannot execute other instructions until the operation is done.</p>
+<p><strong>Non-blocking operations</strong> execute <strong>asynchronously</strong>, i.e., the thread can execute other instructions while the operation is in progress.</p>
+<blockquote>
+<p>Generally, when dealing with Node we consider operations blocking/non-blocking only related to the main thread where the event loop runs. Meaning, we can consider an operation non-blocking in the Node world while that operation is simply offloaded to a worker thread and blocking that thread.</p>
+</blockquote>
+<p>A <strong>process</strong> groups together the required resources (e.g. memory space) to execute a program.</p>
+<p><strong>Threads</strong>:</p>
+<ul>
+<li>Parented by a process</li>
+<li>Handle the execution of instructions with the help of a program counter, registers, and a <strong>call stack</strong> (all three independent for all threads)</li>
+<li>Share the memory space of the process, i.e., faster interthread communication than interprocess</li>
+</ul>
+<p><strong>Memory heap</strong>: portion of memory with dynamically allocated data</p>
+<p><strong>I/O</strong>: disk (e.g. reading/writing a file) and network (e.g. doing HTTP requests) operations</p>
+<p><strong>Callback</strong>:</p>
+<ul>
+<li>A callback is a function passed to another function as an argument, to be called inside that function once some action is finalised</li>
+<li>More specifically to Node, callbacks enable asynchronous behavior, by defining the action that should be performed once the asynchronous operation is done</li>
+</ul>
+<p><strong>Thread-based servers</strong>:</p>
+<ul>
+<li>Handle each incoming request in a separate thread</li>
+<li>I/O is blocking/synchronous (i.e., the thread&rsquo;s call stack is stuck until the I/O operation is finished)</li>
+<li>Based on throughput, the overhead cost can increase (if the thread pool is too small for the throughput, either a new thread has to be created, or the client waits for a thread to be released in the thread pool)</li>
+</ul>
+<p><strong>Event-based servers</strong>:</p>
+<ul>
+<li>Handle every incoming request in one main thread</li>
+<li>I/O is non-blocking/asynchronous on the main thread and managed by an event (I/O) loop</li>
+<li>This approach makes the assumption our server is I/O intensive instead of CPU intensive</li>
+<li>If we manage to avoid intensive computing, this approach gains an advantage over the thread-based servers, because it manages to avoid the thread overhead, by processing all requests in the same thread</li>
+</ul>
+<h2 id="concurrency-model">Concurrency model</h2>
+<p>At the core of Node&rsquo;s concurrency is its event-based architecture with the event loop in the center. The event loop is either pooling for I/O events or looping through callback queues and executing them (i.e. sending them to the call stack).</p>
+<p>By using one thread for incoming requests, we make use of events that signal incoming requests or the completion of asynchronous operations and are picked up by the event loop and executed one by one. The whole system hangs on the idea of fast-executing callbacks and not starving the event loop. If at any time a callback takes too long to finish that means no other client requests are being processed.</p>
+<p><em>Event handlers are a type of callback, that is meant to be executed once an event is emitted.</em></p>
+<p>Let&rsquo;s follow an example where 5 HTTP requests come at the same time. In order to fulfill the requests, all we have to do in our handler is call the database for some data and return it to the client:</p>
+<ul>
+<li>For each incoming HTTP request, an event is emitted that has an event handler attached (the code we wrote to run for that specific endpoint)</li>
+<li>The event loop which continuously listens for events, takes in the HTTP request events and puts the event handlers in a queue, that gets emptied one by one</li>
+<li>Once event handlers get executed, we enter the code we wrote where we call the DB and send a response to the client</li>
+<li>Once we hit the line that does the DB request, non-blocking sockets come into play and enable us to execute other callbacks (this enables all 5 requests to get to this point)</li>
+<li>When the DB request started, an <code>EventEmitter</code> object is created, that will emit an event when there is a finality to the request (success or error)</li>
+<li>When DB requests start completing, events start being emitted with their handlers (in this case, all they do is return the data we got from the DB)</li>
+<li>The events are being picked up by the event loop, put in a queue, and executed one by one</li>
+<li>Finally, we start sending responses to clients and finalize the requests</li>
+</ul>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/users&#34;, async (_, res) =&gt; {
+  const users = await db.get(&#39;users&#39;)
+  res.json({ users });
+});
+
+app.listen(3000);
+</code></pre><p>Now, we can look at lines like this <code>const users = await db.get('users')</code> in a different light. This <code>await</code> syntax is there only to help us give our endpoint handler a synchronous structure. The DB operation happens on the main thread and is non-blocking. In order for that <code>await</code> to return a value, the event loop has to actually execute the callback from the emitted event that signaled the finality of the request.</p>
+<h2 id="memory-model">Memory model</h2>
+<p>Node uses JavaScript which is a garbage-collected language, meaning, we don&rsquo;t have to deal with memory deallocations. The job of the garbage collector is straightforward: identify unused memory allocations then release that memory so it could be further used.</p>
+<p>The JavaScript engine that Node uses implements a generational garbage collector called Orinoco.</p>
+<p><strong>Orinoco</strong>:</p>
+<ul>
+<li>starts from the premise that most objects die young, which is true in the context of servers as well</li>
+<li>splits objects into different generations (young and old)</li>
+<li>young generation allocations are cheap, so is the algorithm cleaning it when it gets full</li>
+<li>if objects survive two GC cycles they&rsquo;re moved to the old generation</li>
+<li>old generation has a bigger size, and most objects will die young anyway, so this space is rarely expected to need clean-up (if we write proper code that is not leaking memory)</li>
+<li><strong>When the garbage collector runs, code does not</strong></li>
+</ul>
+<h2 id="diagram-and-clarifications">Diagram and clarifications</h2>
+<p><img src="/node-diagram.png" alt="alt text"></p>
+<p>We can see that Node is more of a glue between external dependencies (<code>V8</code>, <code>libuv</code>, <code>c-ares</code>) that provides us APIs (e.g. <code>http</code>, <code>fs</code>) which are actually C bindings. These bindings are simply libraries that bind two programming languages, in our case they enable us to write for e.g. HTTP call in JavaScript, but under the hood that call is actually executed in C by <code>libuv</code>.</p>
+<p>Let&rsquo;s summarize each section of the diagram.</p>
+<h3 id="the-callback-queues">The callback queues</h3>
+<p>So, it&rsquo;s not only the event loop that manages and executes callbacks from multiple queues. We also have the <code>nextTick</code> queue and the <code>promise</code> microtask queue. And all 3 of them are managed by different entities.</p>
+<p>The queues have a specific order of execution:</p>
+<ul>
+<li><code>nextTick</code> queue has the highest priority for execution</li>
+<li><code>promise</code> microtask queue second-highest</li>
+<li>event loop queues third</li>
+</ul>
+<p>Let&rsquo;s follow some examples where the call stack finished execution and we find ourselves with populated callback queues:</p>
+<p><strong>First example</strong></p>
+<pre tabindex="0"><code>setTimeout(() =&gt; console.log(&#39;setTimeout 1 callback&#39;), 0)
+setTimeout(() =&gt; console.log(&#39;setTimeout 2 callback&#39;), 0)
+
+Promise.resolve().then(() =&gt; console.log(&#39;promise 1 callback&#39;))
+Promise.resolve().then(() =&gt; console.log(&#39;promise 2 callback&#39;))
+
+process.nextTick(() =&gt; console.log(&#39;nextTick 1 callback&#39;))
+process.nextTick(() =&gt; console.log(&#39;nextTick 2 callback&#39;))
+</code></pre><p>Logs:</p>
+<pre tabindex="0"><code>nextTick 1 callback
+nextTick 2 callback
+promise 1 callback
+promise 2 callback
+setTimeout 1 callback
+setTimeout 2 callback
+</code></pre><p>In this case, the situation is clear. The <code>nextTick</code> queue has the highest priority and it empties first, then the <code>promise</code> one, and finally the event loop queue.</p>
+<p><strong>Second example</strong></p>
+<pre tabindex="0"><code>setTimeout(() =&gt; {
+  console.log(&#39;setTimeout 1 callback&#39;)
+  Promise.resolve().then(() =&gt; console.log(&#39;promise from setTimeout callback&#39;))
+  process.nextTick(() =&gt; console.log(&#39;nextTick from setTimeout callback&#39;))
+}, 0)
+
+setTimeout(() =&gt; console.log(&#39;setTimeout 2 callback&#39;), 0)
+</code></pre><p>Logs:</p>
+<pre tabindex="0"><code>setTimeout 1 callback
+nextTick from setTimeout callback
+promise from setTimeout callback
+setTimeout 2 callback
+</code></pre><p>Even if two event loop callbacks are ready to execute, if, in the first callback, we define <code>nextTick</code> or <code>promise</code> callbacks, they take priority and execute before the second event loop callback.</p>
+<p><strong>Third example</strong></p>
+<pre tabindex="0"><code>Promise.resolve().then(() =&gt; {
+  console.log(&#39;promise 1 callback&#39;)
+  process.nextTick(() =&gt; console.log(&#39;nextTick 1 callback&#39;))
+})
+Promise.resolve().then(() =&gt; console.log(&#39;promise 2 callback&#39;))
+</code></pre><p>Logs:</p>
+<pre tabindex="0"><code>promise 1 callback
+promise 2 callback
+nextTick 1 callback
+</code></pre><p>Even if <code>nextTick</code> has the highest priority, if we started to execute the <code>promise</code> queue, it will get emptied before executing the <code>nextTick</code> callbacks.</p>
+<p><strong>Conclusions:</strong></p>
+<ul>
+<li><code>nextTick</code>, <code>promise</code>, and event loop is the priority order of the queues</li>
+<li>Event loop queues will always execute one callback, then <code>nextTick</code> and <code>promise</code> queues will be emptied</li>
+<li>If we start executing from either <code>nextTick</code> or <code>promise</code> queue, those queues will be emptied before executing callbacks from other queues</li>
+<li><strong>Because of this specific queue priority we can easily starve the event loop by making recursive <code>nextTick</code> or <code>promise</code> calls</strong></li>
+</ul>
+<h3 id="the-heap">The heap</h3>
+<ul>
+<li>V8 splits the young generation into two semi-spaces</li>
+<li>When one semi-space gets full, objects are moved into the other one (surviving the first GC cycle)</li>
+<li>If the moved objects survive one more GC cycle they get promoted to the old generation</li>
+<li>When young generation or old generation spaces become full their respective algorithm is triggered and releases memory</li>
+<li><strong>The sizes for both spaces are customizable, this enables fine-tuning based on our particular use cases</strong></li>
+</ul>
+<h3 id="bindings-and-threads">Bindings and threads</h3>
+<p>Which thread handles which operation can be pretty confusing with Node.</p>
+<ul>
+<li>Network and timer operations run on the main thread and are non-blocking</li>
+<li>Synchronous APIs for compute or disk run on the main thread blocking it</li>
+<li>Asynchronous APIs for compute or disk run on threads from <code>libuv</code> thread pool and are blocking the thread they&rsquo;re running on</li>
+<li>DNS operations run on threads from <code>c-ares</code> thread pool and are blocking the thread they&rsquo;re running on</li>
+</ul>
+<hr>
+<h2 id="performance"><code>Performance</code></h2>
+<p>Even though this topic is hugely vast, there are some basic points that we can follow and get good performance out of most APIs:</p>
+<ul>
+<li>Write optimal code (algorithmic complexity, network trips, memory footprint)</li>
+<li>Offload appropriate operations to workers</li>
+<li>Cache as much as possible</li>
+</ul>
+<h3 id="cost-and-cascading-effects">Cost and cascading effects</h3>
+<p>Let&rsquo;s follow the cost of different operations in the context of thousands requests/second:</p>
+<p><strong>1. Endpoint that just returns a response</strong></p>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/&#34;, async (_, res) =&gt; {
+	res.json({ success: true });
+});
+
+app.listen(3000);
+</code></pre><p>Benchmark result:</p>
+<pre tabindex="0"><code>Requests per second:    9062.08 [#/sec] (mean)
+Time per request:       11.035 [ms] (mean)
+</code></pre><p><strong>2. Adding O(N) operation, where N=1mil</strong></p>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/&#34;, async (_, res) =&gt; {
+	for (let i = 0; i &lt;= 1000000; i++) {}
+	res.json({ success: true });
+});
+
+app.listen(3000);
+</code></pre><p>Benchmark result:</p>
+<pre tabindex="0"><code>Requests per second:    2313.30 [#/sec] (mean)
+Time per request:       43.228 [ms] (mean)
+</code></pre><p>Even if it is an empty <code>for</code> it still takes lots of CPU cycles to finish, meaning every request takes longer, and the call stack is stuck iterating loops than processing new request callbacks.</p>
+<p>Even if a <code>for</code> with N=1mil might be far-fetched, you can easily get the same number of operations with an O(N^2) operation with N=1000.</p>
+<p><strong>3. Simulating a 50ms network call</strong></p>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/&#34;, async (_, res) =&gt; {
+  for (let i = 0; i &lt;= 1000000; i++) {}
+  await new Promise((resolve) =&gt; {
+    setTimeout(resolve, 50);
+  });
+  res.json({ success: true });
+});
+
+app.listen(3000);
+</code></pre><p>Benchmark result:</p>
+<pre tabindex="0"><code>Requests per second: 1547.41 [#/sec] (mean)
+Time per request: 64.624 [ms] (mean)
+</code></pre><p><strong>4. But, it&rsquo;s totally normal to have endpoints that have more than one network call</strong></p>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/&#34;, async (_, res) =&gt; {
+  for (let i = 0; i &lt;= 1000000; i++) {}
+  await new Promise((resolve) =&gt; {
+    setTimeout(resolve, 50);
+  });
+  await new Promise((resolve) =&gt; {
+    setTimeout(resolve, 50);
+  });
+  res.json({ success: true });
+});
+
+app.listen(3000);
+</code></pre><p>Benchmark result:</p>
+<pre tabindex="0"><code>Requests per second:    816.31 [#/sec] (mean)
+Time per request:       122.503 [ms] (mean)
+</code></pre><p>Just one extra network call halves our throughput.</p>
+<p><strong>5. Let&rsquo;s add some work for the garbage collector</strong></p>
+<pre tabindex="0"><code>const express = require(&#34;express&#34;);
+const app = express();
+
+app.get(&#34;/&#34;, async (_, res) =&gt; {
+  let arr = [];
+  for (let i = 0; i &lt;= 1000000; i++) {
+    arr.push(10);
+  }
+  await new Promise((resolve) =&gt; {
+    setTimeout(resolve, 50);
+  });
+  await new Promise((resolve) =&gt; {
+    setTimeout(resolve, 50);
+  });
+  res.json({ success: true });
+});
+
+app.listen(3000);
+</code></pre><p>Benchmark result:</p>
+<pre tabindex="0"><code>Requests per second:    85.87 [#/sec] (mean)
+Time per request:       1164.554 [ms] (mean)
+</code></pre><p>This caused the biggest hit on throughput. Every request allocated an array of one million elements, so the new-space gets full all the time, so the garbage collector will run the minor GC a lot, and <strong>when the garbage collector runs our code does not</strong>.</p>
+<p>One key note from this examples is to <strong>think of cost in a cascading way</strong>. Our performance is measured in throughput not in isolated scenarios.</p>
+<p>In a way, it&rsquo;s kinda known that doing O(N^2) operations is not ideal performance-wise, and sequentially doing network requests will increase latency. But, what might fly under the radar is the cost of the garbage collector if we&rsquo;re not careful of how we allocate memory. Every single memory allocation has some overhead, so we should approach them with care.</p>
+<p>Also, that huge initial hit of performance from that O(N) operation is meant to signal the fragility of this event-based system. Its whole throughput depends on us executing callbacks quickly by avoiding intensive CPU operation or expensive synchronous APIs that block the thread.</p>
+<h3 id="api-and-workers">API and workers</h3>
+<p>Not every optimization problem can be solved by just optimizing algorithms, network trips or the memory footprint of an endpoint. This is where workers come into play.</p>
+<p>Let&rsquo;s say we have a sign-up endpoint, where we add a user in the database and send a welcome to our app email. In order to send that email we use a third-party API. Some notes:</p>
+<ul>
+<li>The welcome to our app email is not critical to the business logic, whats imperative is the user to be added in the database and to be able to log in</li>
+<li>We have no control over the latency of third-party APIs, we can find ourselves having 100ms+ response times for them without being able to do anything</li>
+</ul>
+<p>With these two notes in mind, it kinda comes naturally that if we find ourselves with thousands or tens of thousands of users registering every second, we should outsource that email operation to a worker, thus making a pretty substantial improvement to our sign-up endpoint throughput. Instead of making the call to the third-party API, our endpoint will just publish a message via some broker (e.g. RabbitMQ, Kafka) signifing that user X should get an email, and the worker will just listen to messages and attempting to send the emails.</p>
+<p>Situations to consider offloading operations to workers:</p>
+<ul>
+<li>Non-critical operations with variable latencies</li>
+<li>CPU intensive operations when using event-based servers</li>
+</ul>
+<h3 id="caching">Caching</h3>
+<p>As a generally rule of thumb requests should get to certain machines or operations only if it&rsquo;s necessary. Meaning:</p>
+<ul>
+<li>If the client (web/mobile app) needs a new API response only every 10 minutes, it should cache the response and call the API only when it&rsquo;s necessary</li>
+<li>If a database query rarely changes it&rsquo;s response, we should cache the response in memory (e.g. via Redis), and serve the data from there</li>
+<li>If we query by a certain field, that query should be indexed (saved in memory and point to the record on disk)</li>
+</ul>
+<p>The best optimization we can do to our API is not call it, same for the database or any other machine that spends resources to serve us something.</p>
+<hr>
+<h2 id="conclusion"><code>Conclusion</code></h2>
+<p>Because of the event-based approach, Node is similar with NoSQL databases, in the sense that, in certain use cases it will outperform the classic RDBMS (in our case thread-based servers), but the cost of that performance improvement is we&rsquo;re limited in what operations we can freely do.</p>
+<p>This makes it extra important to understand how Node works from a concurrency and memory point of view, because one mistake can absolutely wreck our throughput.</p>
+<hr>
+<p><strong>References</strong>:</p>
+<p><a href="https://nodejs.org/en/docs/guides/blocking-vs-non-blocking">https://nodejs.org/en/docs/guides/blocking-vs-non-blocking</a> <br>
+<a href="https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick">https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick</a> <br>
+<a href="https://nodejs.org/en/docs/guides/dont-block-the-event-loop">https://nodejs.org/en/docs/guides/dont-block-the-event-loop</a> <br>
+<a href="https://docs.libuv.org/en/v1.x/design.html">https://docs.libuv.org/en/v1.x/design.html</a> <br>
+<a href="https://docs.libuv.org/en/v1.x/threadpool.html#threadpool">https://docs.libuv.org/en/v1.x/threadpool.html#threadpool</a> <br>
+<a href="https://berb.github.io/diploma-thesis/original/043_threadsevents.html">https://berb.github.io/diploma-thesis/original/043_threadsevents.html</a> <br>
+<a href="https://www.youtube.com/watch?v=KKM_4-uQpow">A Deep Dive Into the Node js Event Loop - Tyler Hawkins</a> <br>
+<a href="https://stackoverflow.com/questions/61550822/why-node-js-spins-7-threads-per-process">https://stackoverflow.com/questions/61550822/why-node-js-spins-7-threads-per-process</a>
+<a href="https://v8.dev/blog/trash-talk">https://v8.dev/blog/trash-talk</a> <br>
+<a href="https://jayconrod.com/posts/55/a-tour-of-v8-garbage-collection">https://jayconrod.com/posts/55/a-tour-of-v8-garbage-collection</a> <br>
+<a href="https://v8.dev/blog/free-garbage-collection">https://v8.dev/blog/free-garbage-collection</a> <br>
+<a href="https://deepu.tech/memory-management-in-v8/">https://deepu.tech/memory-management-in-v8/</a></p>
+</div></article>
+<footer class="py:24">
+    <div class="f:fade-30 f:14 mb:8">© 2023 Robert Dordai</div>
+    <div class="f:fade-60 f:12">Theme <a class="f:bold" href="https://github.com/serkodev/holy" _target="_blank">Holy</a></div>
+</footer></div>
+    </div>
+</body>
+
+</html>

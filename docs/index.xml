@@ -8,14 +8,16 @@
     <language>en-US</language>
     <lastBuildDate>Sun, 21 May 2023 01:00:37 +0300</lastBuildDate><atom:link href="https://robert-dordai.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>concurrency &amp; garbage w/ node</title>
-      <link>https://robert-dordai.github.io/concurrency-garbage-w/-node/</link>
+      <title>concurrency, garbage &amp; performance w/ node</title>
+      <link>https://robert-dordai.github.io/concurrency-garbage-performance-w/-node/</link>
       <pubDate>Sun, 21 May 2023 01:00:37 +0300</pubDate>
       
-      <guid>https://robert-dordai.github.io/concurrency-garbage-w/-node/</guid>
-      <description>This meme reminds me a lot of Node as well. In this article, I&amp;rsquo;ll attempt to bring more clarity about how Node works under the hood from a concurrency and memory management point of view. After that, approach the performance topic of Node servers, and how its internals can affect it.
-Node under the hood
-Terminology Overview of Node&amp;rsquo;s concurrency model Overview of Node&amp;rsquo;s memory model Diagram and clarifications The callback queues The heap Bindings and threads Notes on performance</description>
+      <guid>https://robert-dordai.github.io/concurrency-garbage-performance-w/-node/</guid>
+      <description>In this article I&amp;rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
+Concurrency and garbage
+Terminology Concurrency model Memory model Diagram and clarifications The callback queues The heap Bindings and threads Performance
+Cost and cascading effects API and workers Caching Conclusion
+Concurrency and garbage Terminology Many words and concepts are thrown around when dealing with Node.</description>
     </item>
     
   </channel>
