@@ -1,5 +1,5 @@
 ---
-title: "Home"
+title: ""
 ---
 
-Backend software engineer sharing stuff. [LinkedIn](https://www.linkedin.com/in/robertdordai/)
+@ Robert Dordai | [LinkedIn](https://www.linkedin.com/in/robertdordai/)

@@ -1,5 +1,5 @@
 ---
-title: "concurrency, garbage & performance w/ node"
+title: "node"
 date: 2023-05-21T01:00:37+03:00
 draft: false
 ---
@@ -7,18 +7,20 @@ draft: false
 In this article I'll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
 
 [Concurrency and garbage](#concurrency-and-garbage)
-  - [Terminology](#terminology)
-  - [Concurrency model](#concurrency-model)
-  - [Memory model](#memory-model)
-  - [Diagram and clarifications](#diagram-and-clarifications)
-    - [The callback queues](#the-callback-queues)
-    - [The heap](#the-heap)
-    - [Bindings and threads](#bindings-and-threads)
+
+- [Terminology](#terminology)
+- [Concurrency model](#concurrency-model)
+- [Memory model](#memory-model)
+- [Diagram and clarifications](#diagram-and-clarifications)
+  - [The callback queues](#the-callback-queues)
+  - [The heap](#the-heap)
+  - [Bindings and threads](#bindings-and-threads)
 
 [Performance](#performance)
-  - [Cost and cascading effects](#cost-and-cascading-effects)
-  - [API and workers](#api-and-workers)
-  - [Caching](#caching)
+
+- [Cost and cascading effects](#cost-and-cascading-effects)
+- [API and workers](#api-and-workers)
+- [Caching](#caching)
 
 [Conclusion](#conclusion)
 
@@ -41,7 +43,7 @@ A **process** groups together the required resources (e.g. memory space) to exec
 **Threads**:
 
 - Parented by a process
-- Handle the execution of instructions with the help of a program counter, registers, and a **call stack** (all three independent for all threads) 
+- Handle the execution of instructions with the help of a program counter, registers, and a **call stack** (all three independent for all threads)
 - Share the memory space of the process, i.e., faster interthread communication than interprocess
 
 **Memory heap**: portion of memory with dynamically allocated data
@@ -72,7 +74,7 @@ At the core of Node's concurrency is its event-based architecture with the event
 
 By using one thread for incoming requests, we make use of events that signal incoming requests or the completion of asynchronous operations and are picked up by the event loop and executed one by one. The whole system hangs on the idea of fast-executing callbacks and not starving the event loop. If at any time a callback takes too long to finish that means no other client requests are being processed.
 
-*Event handlers are a type of callback, that is meant to be executed once an event is emitted.*
+_Event handlers are a type of callback, that is meant to be executed once an event is emitted._
 
 Let's follow an example where 5 HTTP requests come at the same time. In order to fulfill the requests, all we have to do in our handler is call the database for some data and return it to the client:
 

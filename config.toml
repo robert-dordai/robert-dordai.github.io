@@ -1,6 +1,6 @@
 baseURL = "https://robert-dordai.github.io/"
-title = "Home"
-theme = "holy"
+title = ""
+theme = "no-style-please"
 languageCode = "en-US"
 enableInlineShortcodes = true
 pygmentsCodeFences = true
