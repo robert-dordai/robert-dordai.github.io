@@ -12,9 +12,13 @@ publishDir = "docs"
   copyright = "© 2023 Robert Dordai"
   dark = "true"
   highlight = true
+  [params.theme_config]
+    appearance = "dark"
+    back_home_text = ".."
+    date_format = "2006-01-02"
+    show_description = false
 
 [menu]
-
 
 [permalinks]
   posts = "/:title/"

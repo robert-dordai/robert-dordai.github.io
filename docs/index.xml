@@ -8,11 +8,11 @@
     <language>en-US</language>
     <lastBuildDate>Sun, 21 May 2023 01:00:37 +0300</lastBuildDate><atom:link href="https://robert-dordai.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>node</title>
-      <link>https://robert-dordai.github.io/node/</link>
+      <title>about_node</title>
+      <link>https://robert-dordai.github.io/about_node/</link>
       <pubDate>Sun, 21 May 2023 01:00:37 +0300</pubDate>
       
-      <guid>https://robert-dordai.github.io/node/</guid>
+      <guid>https://robert-dordai.github.io/about_node/</guid>
       <description>In this article I&amp;rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
 Concurrency and garbage
 Terminology Concurrency model Memory model Diagram and clarifications The callback queues The heap Bindings and threads Performance

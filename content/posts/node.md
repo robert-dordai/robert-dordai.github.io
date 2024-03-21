@@ -1,5 +1,5 @@
 ---
-title: "node"
+title: "about_node"
 date: 2023-05-21T01:00:37+03:00
 draft: false
 ---
@@ -424,7 +424,7 @@ https://docs.libuv.org/en/v1.x/design.html \
 https://docs.libuv.org/en/v1.x/threadpool.html#threadpool \
 https://berb.github.io/diploma-thesis/original/043_threadsevents.html \
 [A Deep Dive Into the Node js Event Loop - Tyler Hawkins](https://www.youtube.com/watch?v=KKM_4-uQpow) \
-https://stackoverflow.com/questions/61550822/why-node-js-spins-7-threads-per-process
+https://stackoverflow.com/questions/61550822/why-node-js-spins-7-threads-per-process \
 https://v8.dev/blog/trash-talk \
 https://jayconrod.com/posts/55/a-tour-of-v8-garbage-collection \
 https://v8.dev/blog/free-garbage-collection \

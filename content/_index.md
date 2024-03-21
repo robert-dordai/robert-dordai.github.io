@@ -2,4 +2,4 @@
 title: ""
 ---
 
-@ Robert Dordai | [LinkedIn](https://www.linkedin.com/in/robertdordai/)
+backend stuff | [LinkedIn](https://www.linkedin.com/in/robertdordai/)
