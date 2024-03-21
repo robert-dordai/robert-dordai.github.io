@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Posts on Home</title>
+    <title>Posts on </title>
     <link>https://robert-dordai.github.io/posts/</link>
-    <description>Recent content in Posts on Home</description>
+    <description>Recent content in Posts on </description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
     <lastBuildDate>Sun, 21 May 2023 01:00:37 +0300</lastBuildDate><atom:link href="https://robert-dordai.github.io/posts/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>concurrency, garbage &amp; performance w/ node</title>
-      <link>https://robert-dordai.github.io/concurrency-garbage-performance-w/-node/</link>
+      <title>node</title>
+      <link>https://robert-dordai.github.io/node/</link>
       <pubDate>Sun, 21 May 2023 01:00:37 +0300</pubDate>
       
-      <guid>https://robert-dordai.github.io/concurrency-garbage-performance-w/-node/</guid>
+      <guid>https://robert-dordai.github.io/node/</guid>
       <description>In this article I&amp;rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
 Concurrency and garbage
 Terminology Concurrency model Memory model Diagram and clarifications The callback queues The heap Bindings and threads Performance
