@@ -1,4 +1,5 @@
 ---
+url: "node"
 title: "about_node"
 date: 2023-05-21T01:00:37+03:00
 draft: false
