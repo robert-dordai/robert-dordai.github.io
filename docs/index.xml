@@ -6,18 +6,14 @@
     <description>Recent content on </description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-US</language>
-    <lastBuildDate>Sun, 21 May 2023 01:00:37 +0300</lastBuildDate><atom:link href="https://robert-dordai.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Mon, 06 Oct 2025 01:00:37 +0300</lastBuildDate><atom:link href="https://robert-dordai.github.io/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>about_node</title>
-      <link>https://robert-dordai.github.io/node/</link>
-      <pubDate>Sun, 21 May 2023 01:00:37 +0300</pubDate>
+      <title>Reflections on 7 years as a SWE</title>
+      <link>https://robert-dordai.github.io/reflections/</link>
+      <pubDate>Mon, 06 Oct 2025 01:00:37 +0300</pubDate>
       
-      <guid>https://robert-dordai.github.io/node/</guid>
-      <description>In this article I&amp;rsquo;ll discuss about how Node works under the hood by focusing on its concurrency and memory models, then talk about performance when writing APIs.
-Concurrency and garbage
-Terminology Concurrency model Memory model Diagram and clarifications The callback queues The heap Bindings and threads Performance
-Cost and cascading effects API and workers Caching Conclusion
-Concurrency and garbage Terminology Many words and concepts are thrown around when dealing with Node.</description>
+      <guid>https://robert-dordai.github.io/reflections/</guid>
+      <description>Benefits and trade-offs of a tool/approach do not reveal themselves at the same time. Cassandra will instantly be insanely fast, but the features from SQL it had to remove to reach that speed may be understated when starting a system. If troubleshooting seems paranormal, assume the mistake is in your yard. Logic and sound arguments do not gain special properties based on the person using them. Do not introduce random ambiguity, if water is wet just say so, no &amp;ldquo;maybe the water is wet&amp;rdquo;.</description>
     </item>
     
   </channel>
